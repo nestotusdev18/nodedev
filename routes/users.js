@@ -15,6 +15,7 @@ router.get('/register', function(req, res){
 //me
 router.get('/me', function(req, res, next) {
   var token = req.headers['x-access-token'];
+  if(req.session.token==token){
   if (!token) return res.status(401).send({ auth: false, message: 'No token provided.' });
   
   jwt.verify(token, config.secret, function(err, decoded) {
@@ -29,6 +30,9 @@ router.get('/me', function(req, res, next) {
       next(user); // add this line
     });
   });
+}else{
+  res.status(500).send({ auth: false, message: 'Failed to authenticate token.' });
+}
 });
 // add the middleware function
 router.use(function (user, req, res, next) {
@@ -77,7 +81,7 @@ router.post('/register', function(req, res){
           // create a token
           var token = jwt.sign({ id: user._id }, config.secret, {
             expiresIn: 86400 // expires in 24 hours
-          });
+          }); req.session.token=token;
           res.status(200).send({ auth: true, token: token });
         }); 
 
@@ -104,7 +108,7 @@ router.post('/login', function(req, res) {
     var token = jwt.sign({ id: user._id }, config.secret, {
       expiresIn: 86400 // expires in 24 hours
     });
-    req.session._id=user._id;
+    req.session.token=token;
     res.status(200).send({ auth: true, token: token });
   });
 });
@@ -123,6 +127,7 @@ router.get('/logout',ensureAuthenticated, function(req, res) {
   var token = jwt.sign({ id:  req.userId }, config.secret, {
     expiresIn: 0 // expires in 24 hours
   });
+  req.session.token=token;
   res.status(200).send({ auth: false, token: null });
 });
 

@@ -96,7 +96,12 @@ router.delete('/:id',ensureAuthenticated, function(req, res){
         if(err){
           console.log(err);
         }
+        if(article)
+        {
         res.status(200).send({ success:'Article Deleted',  title:  article.title });
+        }else{
+          res.status(200).send({ success:'Fail',  msg:  "Not Found" });
+        }
       });
     
   });
@@ -119,6 +124,8 @@ router.get('/:id',ensureAuthenticated, function(req, res){
  function ensureAuthenticated(req, res, next){
  
   var token = req.headers['x-access-token'];
+  if(req.session.token==token)
+  {
   if (!token)
     return res.status(403).send({ auth: false, message: 'No token provided.' });
   jwt.verify(token, config.secret, function(err, decoded) {
@@ -128,6 +135,9 @@ router.get('/:id',ensureAuthenticated, function(req, res){
     req.userId = decoded.id;
     next();
   });
+}else{
+  return res.status(403).send({ auth: false, message: 'No token provided.' });
+}
 }
 
 module.exports = router;
