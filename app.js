@@ -89,10 +89,11 @@ app.get('/', function(req, res){
     if(err){
       console.log(err);
     } else {
-      res.render('index', {
-        title:'Articles',
-        articles: articles
-      });
+      res.status(200).send({ success:'Articles',  articles: articles});
+      // res.render('index', {
+      //   title:'Articles',
+      //   articles: articles
+      // });
     }
   });
 });

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-
+const jwt = require('jsonwebtoken');
+const config=require('../config/database');
 // Article Model
 let Article = require('../models/article');
 // User Model
@@ -14,7 +15,7 @@ router.get('/add', ensureAuthenticated, function(req, res){
 });
 
 // Add Submit POST Route
-router.post('/add', function(req, res){
+router.post('/add', ensureAuthenticated, function(req, res){
   req.checkBody('title','Title is required').notEmpty();
   //req.checkBody('author','Author is required').notEmpty();
   req.checkBody('body','Body is required').notEmpty();
@@ -30,7 +31,7 @@ router.post('/add', function(req, res){
   } else {
     let article = new Article();
     article.title = req.body.title;
-    article.author = req.user._id;
+    article.author = req.userId;
     article.body = req.body.body;
 
     article.save(function(err){
@@ -39,7 +40,7 @@ router.post('/add', function(req, res){
         return;
       } else {
         req.flash('success','Article Added');
-        res.redirect('/');
+        res.status(200).send({ success:'Article Added',  title:  article.title });
       }
     });
   }
@@ -60,10 +61,10 @@ router.get('/edit/:id', ensureAuthenticated, function(req, res){
 });
 
 // Update Submit POST Route
-router.post('/edit/:id', function(req, res){
+router.post('/edit/:id',ensureAuthenticated, function(req, res){
   let article = {};
   article.title = req.body.title;
-  article.author = req.body.author;
+  article.author = req.userId;
   article.body = req.body.body;
 
   let query = {_id:req.params.id}
@@ -74,53 +75,59 @@ router.post('/edit/:id', function(req, res){
       return;
     } else {
       req.flash('success', 'Article Updated');
-      res.redirect('/');
+      res.status(200).send({ success:'Article Updated',  title:  article.title });
+      //res.redirect('/');
     }
   });
 });
 
 // Delete Article
-router.delete('/:id', function(req, res){
-  if(!req.user._id){
-    res.status(500).send();
+router.delete('/:id',ensureAuthenticated, function(req, res){
+  if(!req.userId){
+   res.status(500).send({ success:'fail'});
   }
 
   let query = {_id:req.params.id}
 
   Article.findById(req.params.id, function(err, article){
-    if(article.author != req.user._id){
-      res.status(500).send();
-    } else {
+   
+    
       Article.remove(query, function(err){
         if(err){
           console.log(err);
         }
-        res.send('Success');
+        res.status(200).send({ success:'Article Deleted',  title:  article.title });
       });
-    }
+    
   });
 });
 
 // Get Single Article
-router.get('/:id', function(req, res){
+router.get('/:id',ensureAuthenticated, function(req, res){
   Article.findById(req.params.id, function(err, article){
     User.findById(article.author, function(err, user){
-      res.render('article', {
-        article:article,
-        author: user.name
-      });
+      // res.render('article', {
+      //   article:article,
+      //   author: user.name
+      // });
+      res.status(200).send({ article:article,  author: user.name });
     });
   });
 });
 
 // Access Control
-function ensureAuthenticated(req, res, next){
-  if(req.isAuthenticated()){
-    return next();
-  } else {
-    req.flash('danger', 'Please login');
-    res.redirect('/users/login');
-  }
+ function ensureAuthenticated(req, res, next){
+ 
+  var token = req.headers['x-access-token'];
+  if (!token)
+    return res.status(403).send({ auth: false, message: 'No token provided.' });
+  jwt.verify(token, config.secret, function(err, decoded) {
+    if (err)
+    return res.status(500).send({ auth: false, message: 'Failed to authenticate token.' });
+    // if everything good, save to request for use in other routes
+    req.userId = decoded.id;
+    next();
+  });
 }
 
 module.exports = router;
